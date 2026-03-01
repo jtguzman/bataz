@@ -28,6 +28,7 @@ func _on_placement_started(player: int) -> void:
 	hud.show_placement_ui(player)
 
 func _on_placement_confirmed(player: int) -> void:
+	hud.hide_placement_ui()
 	if player == 1:
 		await _flip_board()
 		board.clear_placement_pawns(1)
