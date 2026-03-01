@@ -159,6 +159,6 @@ func _on_defense_chosen(played_defense: bool, card_index: int) -> void:
 		defender_adjacent = GameManager.get_adjacent_allies(defender_pos, defender)
 	TurnManager.on_defense_resolved(played_defense, defender_adjacent)
 
-func _on_attack_resolved(defender_pos: Vector2i, pawn_survives: bool, _ar: int, _dr: int) -> void:
+func _on_attack_resolved(defender_pos: Vector2i, pawn_survives: bool, _ar: int, _dr: int, _ads: int, _dds: int) -> void:
 	if not pawn_survives:
 		GameManager.remove_pawn_at(defender_pos)

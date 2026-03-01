@@ -280,7 +280,7 @@ func _on_defense_pass_btn_pressed() -> void:
 	defense_panel.visible = false
 	defense_chosen.emit(false, -1)
 
-func _on_attack_resolved(_dp: Vector2i, pawn_survives: bool, attack_roll: int, defense_roll: int) -> void:
+func _on_attack_resolved(_dp: Vector2i, pawn_survives: bool, attack_roll: int, defense_roll: int, attack_die_sides: int, defense_die_sides: int) -> void:
 	var msg := ""
 	if defense_roll > 0:
 		msg = "ATK %d vs DEF %d - %s" % [attack_roll, defense_roll, "Blocked!" if pawn_survives else "Hit!"]
@@ -295,9 +295,10 @@ func _on_attack_resolved(_dp: Vector2i, pawn_survives: bool, attack_roll: int, d
 			dice_panel.visible = false
 	)
 	if defense_roll > 0:
-		_pending_history["detail"] = "  Atk:%d Def:%d -> %s" % [attack_roll, defense_roll, "Blocked!" if pawn_survives else "Hit!"]
+		var outcome := "Blocked!" if pawn_survives else "Hit!"
+		_pending_history["detail"] = "  1d%d=%d vs 1d%d=%d → %s" % [attack_die_sides, attack_roll, defense_die_sides, defense_roll, outcome]
 	else:
-		_pending_history["detail"] = "  Atk:%d -> Hit!" % attack_roll
+		_pending_history["detail"] = "  1d%d=%d → Hit! (undefended)" % [attack_die_sides, attack_roll]
 
 # Fix MIN-8: _on_hand_changed now calls _update_deck_display; removed duplicate hand_changed lambda in _ready
 func _on_hand_changed(player: int, hand: Array) -> void:
