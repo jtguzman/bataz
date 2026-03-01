@@ -12,10 +12,31 @@ func _ready() -> void:
 	hud.discard_pass_requested.connect(_on_discard_pass_requested)
 	hud.movement_done_requested.connect(_on_movement_done)
 	hud.defense_chosen.connect(_on_defense_chosen)
+	hud.placement_confirmed.connect(_on_placement_confirmed)
 	board.board_cell_tapped.connect(_on_board_cell_tapped)
 	TurnManager.phase_changed.connect(_on_phase_changed)
 	TurnManager.attack_resolved.connect(_on_attack_resolved)
-	GameManager.start_game()
+	GameManager.placement_started.connect(_on_placement_started)
+	GameManager.start_placement()
+
+# --- Placement phase ---
+
+func _on_placement_started(player: int) -> void:
+	board.clear_highlights()
+	board.clear_placement_zone()
+	board.highlight_placement_zone(GameManager.get_placement_zone(player))
+	hud.show_placement_ui(player)
+
+func _on_placement_confirmed(player: int) -> void:
+	if player == 1:
+		await _flip_board()
+		board.clear_placement_pawns(1)
+	elif player == 2:
+		board.clear_placement_zone()
+		await _flip_board()
+	GameManager.confirm_placement(player)
+
+# --- Turn phase ---
 
 func _on_phase_changed(phase: TurnManager.Phase) -> void:
 	board.clear_highlights()
@@ -25,11 +46,14 @@ func _on_phase_changed(phase: TurnManager.Phase) -> void:
 		if GameManager.state != GameManager.State.GAME_OVER:
 			_do_flip_then_next_turn()
 
-func _do_flip_then_next_turn() -> void:
-	hud.show_turn_overlay(2 if TurnManager.current_player == 1 else 1)
+func _flip_board() -> void:
 	var tween := create_tween()
 	tween.tween_property(self, "rotation_degrees", rotation_degrees + 180.0, 0.4)
 	await tween.finished
+
+func _do_flip_then_next_turn() -> void:
+	hud.show_turn_overlay(2 if TurnManager.current_player == 1 else 1)
+	await _flip_board()
 	TurnManager.end_turn()
 
 func _on_card_played_by_ui(player: int, card_index: int) -> void:
@@ -47,11 +71,29 @@ func _on_movement_done() -> void:
 	TurnManager.on_movement_done()
 
 func _on_board_cell_tapped(cell: Vector2i) -> void:
-	match TurnManager.phase:
-		TurnManager.Phase.RESOLVE_MOVEMENT:
-			_handle_movement_tap(cell)
-		TurnManager.Phase.RESOLVE_ATTACK:
-			_handle_attack_tap(cell)
+	match GameManager.state:
+		GameManager.State.PLACEMENT_P1:
+			_handle_placement_tap(cell, 1)
+		GameManager.State.PLACEMENT_P2:
+			_handle_placement_tap(cell, 2)
+		GameManager.State.PLAYING:
+			match TurnManager.phase:
+				TurnManager.Phase.RESOLVE_MOVEMENT:
+					_handle_movement_tap(cell)
+				TurnManager.Phase.RESOLVE_ATTACK:
+					_handle_attack_tap(cell)
+
+func _handle_placement_tap(cell: Vector2i, player: int) -> void:
+	var zone := GameManager.get_placement_zone(player)
+	if cell not in zone:
+		return
+	var placement_dict := GameManager.placement_p1 if player == 1 else GameManager.placement_p2
+	if placement_dict.has(cell):
+		GameManager.remove_pawn_from_placement(player, cell)
+	elif placement_dict.size() < 8:
+		GameManager.place_pawn(player, cell)
+	board.render_placement(placement_dict, player)
+	hud.update_placement_count(placement_dict.size())
 
 func _handle_movement_tap(cell: Vector2i) -> void:
 	var team := TurnManager.current_player
