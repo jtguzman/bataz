@@ -64,7 +64,7 @@ func _handle_movement_tap(cell: Vector2i) -> void:
 		var moves := GameManager.get_valid_moves(_move_selected)
 		if cell in moves and TurnManager.movement_points > 0:
 			GameManager.move_pawn(_move_selected, cell)
-			TurnManager.movement_points -= 1
+			TurnManager.consume_movement_point()
 			_move_selected = cell
 			board.set_selected(cell)
 			if TurnManager.movement_points > 0:
@@ -104,6 +104,9 @@ func _on_defense_chosen(played_defense: bool, card_index: int) -> void:
 	var defender_adjacent := 0
 	if played_defense and card_index >= 0:
 		var defender_pos: Vector2i = TurnManager.pending_attack["defender_pos"]
+		var hand := CardSystem.get_hand(defender)
+		assert(card_index < hand.size() and hand[card_index] == CardType.Type.DEFENSE,
+			"Defense card index %d is stale or invalid" % card_index)
 		CardSystem.play_card(defender, card_index)
 		defender_adjacent = GameManager.get_adjacent_allies(defender_pos, defender)
 	TurnManager.on_defense_resolved(played_defense, defender_adjacent)
