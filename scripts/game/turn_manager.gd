@@ -5,7 +5,7 @@ signal turn_started(player: int)
 signal phase_changed(phase: Phase)
 signal turn_ended(player: int)
 signal defense_requested(attacker_pos: Vector2i, defender_pos: Vector2i, attacker_die_sides: int)
-signal attack_resolved(defender_pos: Vector2i, pawn_survives: bool, attack_roll: int, defense_roll: int)
+signal attack_resolved(defender_pos: Vector2i, pawn_survives: bool, attack_roll: int, defense_roll: int, attack_die_sides: int, defense_die_sides: int)
 signal movement_rolled(points: int)
 
 enum Phase {
@@ -67,13 +67,15 @@ func on_attack_declared(attacker_pos: Vector2i, defender_pos: Vector2i, attacker
 	defense_requested.emit(attacker_pos, defender_pos, die_sides)
 
 func on_defense_resolved(defender_played_card: bool, defender_adjacent: int) -> void:
-	var attack_roll := DiceRoller.roll(pending_attack["die_sides"])
+	var attack_die_sides: int = pending_attack["die_sides"]
+	var attack_roll := DiceRoller.roll(attack_die_sides)
 	var defender_pos: Vector2i = pending_attack["defender_pos"]
 	var def_roll := 0
+	var def_sides := 0
 	var pawn_survives := false
 
 	if defender_played_card:
-		var def_sides := DiceRoller.get_die_sides(defender_adjacent)
+		def_sides = DiceRoller.get_die_sides(defender_adjacent)
 		def_roll = DiceRoller.roll(def_sides)
 		pawn_survives = def_roll >= attack_roll
 		CardSystem.draw_card(current_player)
@@ -82,7 +84,7 @@ func on_defense_resolved(defender_played_card: bool, defender_adjacent: int) -> 
 	else:
 		CardSystem.draw_card(current_player)
 
-	attack_resolved.emit(defender_pos, pawn_survives, attack_roll, def_roll)
+	attack_resolved.emit(defender_pos, pawn_survives, attack_roll, def_roll, attack_die_sides, def_sides)
 	pending_attack = {}
 	phase = Phase.END
 	phase_changed.emit(phase)
