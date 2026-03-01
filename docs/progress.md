@@ -66,6 +66,9 @@
 - [x] Attack/defense declaration UI (DefensePanel)
 - [x] Win screen (TurnLabel shows "Player X Wins!")
 - [x] Turn overlay ("Player X's Turn" during flip)
+- [x] Turn history sidebar (card played, dice result, outcome per turn)
+- [x] Dice roll overlay on board (die type + result, fades after 1.5s)
+- [x] Draw/discard pile panel left of board (live card counts, last discard color)
 
 ---
 
