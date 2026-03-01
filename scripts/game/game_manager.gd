@@ -25,7 +25,11 @@ func start_placement() -> void:
 
 func get_placement_zone(player: int) -> Array[Vector2i]:
 	var cells: Array[Vector2i] = []
-	var rows: Array[int] = [5, 6, 7] if player == 1 else [0, 1, 2]
+	var rows: Array[int]
+	if player == 1:
+		rows = [5, 6, 7]
+	else:
+		rows = [0, 1, 2]
 	for row in rows:
 		for col in 8:
 			cells.append(Vector2i(col, row))
