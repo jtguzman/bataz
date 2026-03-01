@@ -21,7 +21,6 @@ func start_placement() -> void:
 	placement_p1.clear()
 	placement_p2.clear()
 	board_state.clear()
-	pawn_count = [0, 8, 8]
 	placement_started.emit(1)
 
 func get_placement_zone(player: int) -> Array[Vector2i]:
@@ -33,10 +32,15 @@ func get_placement_zone(player: int) -> Array[Vector2i]:
 	return cells
 
 func place_pawn(player: int, pos: Vector2i) -> void:
-	if player == 1:
-		placement_p1[pos] = player
-	else:
-		placement_p2[pos] = player
+	var dict := placement_p1 if player == 1 else placement_p2
+	if dict.size() >= 8 and not dict.has(pos):
+		push_warning("[GameManager] place_pawn: player %d already has 8 pawns placed" % player)
+		return
+	var zone := get_placement_zone(player)
+	if pos not in zone:
+		push_warning("[GameManager] place_pawn: pos %s outside zone for player %d" % [str(pos), player])
+		return
+	dict[pos] = player
 
 func remove_pawn_from_placement(player: int, pos: Vector2i) -> void:
 	if player == 1:
@@ -45,6 +49,14 @@ func remove_pawn_from_placement(player: int, pos: Vector2i) -> void:
 		placement_p2.erase(pos)
 
 func confirm_placement(player: int) -> void:
+	var expected_state := State.PLACEMENT_P1 if player == 1 else State.PLACEMENT_P2
+	if state != expected_state:
+		push_error("[GameManager] confirm_placement: called for player %d in wrong state" % player)
+		return
+	var dict := placement_p1 if player == 1 else placement_p2
+	if dict.size() != 8:
+		push_error("[GameManager] confirm_placement: player %d has %d pawns, expected 8" % [player, dict.size()])
+		return
 	if player == 1:
 		state = State.PLACEMENT_P2
 		placement_started.emit(2)
@@ -56,6 +68,7 @@ func finalize_placement() -> void:
 		board_state[pos] = placement_p1[pos]
 	for pos in placement_p2:
 		board_state[pos] = placement_p2[pos]
+	pawn_count = [0, placement_p1.size(), placement_p2.size()]
 	state = State.PLAYING
 	CardSystem.setup()
 	TurnManager.start_game()
