@@ -22,7 +22,6 @@ signal movement_done_requested
 @onready var turn_overlay_label: Label = $TurnOverlay/Label
 
 var _card_scene: PackedScene
-var current_player: int = 1
 var _pending_card_index: int = -1
 var play_card_btn: Button
 var _discard_mode: bool = false
@@ -43,6 +42,11 @@ var _dice_result_label: Label
 var _draw_count_label: Label
 var _discard_count_label: Label
 var _discard_card_rect: ColorRect
+
+# Fix IMP-3: generation counters for uncancellable timers
+var _dice_panel_gen: int = 0
+var _dice_overlay_gen: int = 0
+var _turn_overlay_gen: int = 0
 
 func _ready() -> void:
 	_card_scene = load("res://scenes/cards/card.tscn")
@@ -67,7 +71,6 @@ func _ready() -> void:
 	TurnManager.attack_resolved.connect(_on_attack_resolved)
 	TurnManager.turn_ended.connect(_on_turn_ended_history)
 	CardSystem.hand_changed.connect(_on_hand_changed)
-	CardSystem.hand_changed.connect(func(_p: int, _h: Array): _update_deck_display())
 	CardSystem.card_played.connect(_on_card_played_history)
 	GameManager.game_over.connect(_on_game_over)
 	_set_all_action_buttons_hidden()
@@ -102,7 +105,8 @@ func _create_history_panel() -> void:
 	_history_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_history_scroll.add_child(_history_list)
 
-func _on_card_played_history(player: int, type: int) -> void:
+# Fix IMP-6: type parameter as CardType.Type since it always receives real card types from signal
+func _on_card_played_history(player: int, type: CardType.Type) -> void:
 	_pending_history = {"player": player, "card": type, "detail": ""}
 
 func _on_turn_ended_history(_player: int) -> void:
@@ -115,6 +119,8 @@ func _on_turn_ended_history(_player: int) -> void:
 	)
 	_pending_history = {}
 
+# Fix CRIT-2: card_type == -1 is a sentinel meaning the player passed/discarded (no card played)
+# card_type keeps int (not CardType.Type) here because it receives both enum values and the -1 sentinel
 func _append_history_entry(player: int, card_type: int, detail: String) -> void:
 	_history_list.add_child(HSeparator.new())
 	var card_name: String
@@ -206,8 +212,8 @@ func _update_deck_display() -> void:
 
 # --- Existing turn/phase handlers ---
 
+# Fix IMP-2: removed duplicate current_player field; use TurnManager.current_player everywhere
 func _on_turn_started(player: int) -> void:
-	current_player = player
 	turn_label.text = "Player %d" % player
 	_rebuild_both_hands()
 	_set_all_action_buttons_hidden()
@@ -228,7 +234,7 @@ func _on_movement_rolled(points: int) -> void:
 	_pending_history["detail"] = "  Rolled %d pts" % points
 
 func _on_defense_requested(_ap: Vector2i, _dp: Vector2i, die_sides: int) -> void:
-	var defender := 2 if current_player == 1 else 1
+	var defender := 2 if TurnManager.current_player == 1 else 1
 	var hand := CardSystem.get_hand(defender)
 	defense_title.text = "Player %d - Defend? (Attack: 1d%d)" % [defender, die_sides]
 	for child in defense_hand.get_children():
@@ -264,21 +270,28 @@ func _on_attack_resolved(_dp: Vector2i, pawn_survives: bool, attack_roll: int, d
 		msg = "ATK %d - Hit!" % attack_roll
 	dice_label.text = msg
 	dice_panel.visible = true
-	get_tree().create_timer(2.0).timeout.connect(func(): dice_panel.visible = false)
+	_dice_panel_gen += 1
+	var gen := _dice_panel_gen
+	get_tree().create_timer(2.0).timeout.connect(func():
+		if _dice_panel_gen == gen:
+			dice_panel.visible = false
+	)
 	if defense_roll > 0:
 		_pending_history["detail"] = "  Atk:%d Def:%d -> %s" % [attack_roll, defense_roll, "Blocked!" if pawn_survives else "Hit!"]
 	else:
 		_pending_history["detail"] = "  Atk:%d -> Hit!" % attack_roll
 
+# Fix MIN-8: _on_hand_changed now calls _update_deck_display; removed duplicate hand_changed lambda in _ready
 func _on_hand_changed(player: int, hand: Array) -> void:
 	_rebuild_hand(player, hand)
+	_update_deck_display()
 
 func _rebuild_both_hands() -> void:
 	_rebuild_hand(1, CardSystem.get_hand(1))
 	_rebuild_hand(2, CardSystem.get_hand(2))
 
 func _rebuild_hand(player: int, hand: Array) -> void:
-	var is_active := player == current_player
+	var is_active := player == TurnManager.current_player
 	var container: HBoxContainer = bottom_hand if is_active else top_hand
 	for child in container.get_children():
 		child.queue_free()
@@ -300,7 +313,7 @@ func _on_hand_card_tapped(idx: int) -> void:
 		return
 	if TurnManager.phase != TurnManager.Phase.PLAY_CARD:
 		return
-	var hand := CardSystem.get_hand(current_player)
+	var hand := CardSystem.get_hand(TurnManager.current_player)
 	var card_type: int = hand[idx]
 	if card_type == CardType.Type.DEFENSE:
 		_show_message("Defense cards are reactive only")
@@ -312,18 +325,20 @@ func _on_hand_card_tapped(idx: int) -> void:
 	_update_hand_selection()
 	play_card_btn.visible = true
 
+# Fix IMP-1: delegate to GameManager.has_valid_attacker instead of reimplementing
 func _has_valid_attacker() -> bool:
-	var team := TurnManager.current_player
-	for pos in GameManager.board_state:
-		if GameManager.board_state[pos] == team:
-			if not GameManager.get_valid_attack_targets(pos).is_empty():
-				return true
-	return false
+	return GameManager.has_valid_attacker(TurnManager.current_player)
 
+# Fix IMP-3: use _dice_panel_gen to cancel stale timer callbacks
 func _show_message(msg: String) -> void:
 	dice_label.text = msg
 	dice_panel.visible = true
-	get_tree().create_timer(2.0).timeout.connect(func(): dice_panel.visible = false)
+	_dice_panel_gen += 1
+	var gen := _dice_panel_gen
+	get_tree().create_timer(2.0).timeout.connect(func():
+		if _dice_panel_gen == gen:
+			dice_panel.visible = false
+	)
 
 func _update_hand_selection() -> void:
 	var i := 0
@@ -334,20 +349,32 @@ func _update_hand_selection() -> void:
 func _on_play_card_btn_pressed() -> void:
 	if _pending_card_index < 0:
 		return
-	card_played_by_ui.emit(current_player, _pending_card_index)
+	card_played_by_ui.emit(TurnManager.current_player, _pending_card_index)
 	_pending_card_index = -1
 	play_card_btn.visible = false
 
+# Fix IMP-3: use _turn_overlay_gen to cancel stale timer callbacks
 func show_turn_overlay(player: int) -> void:
 	turn_overlay_label.text = "Player %d's Turn" % player
 	turn_overlay.visible = true
-	get_tree().create_timer(0.8).timeout.connect(func(): turn_overlay.visible = false)
+	_turn_overlay_gen += 1
+	var gen := _turn_overlay_gen
+	get_tree().create_timer(0.8).timeout.connect(func():
+		if _turn_overlay_gen == gen:
+			turn_overlay.visible = false
+	)
 
+# Fix IMP-3: use _dice_overlay_gen to cancel stale timer callbacks
 func _show_dice(die_label: String, result: int) -> void:
 	_dice_type_label.text = die_label
 	_dice_result_label.text = str(result)
 	_dice_overlay.visible = true
-	get_tree().create_timer(1.5).timeout.connect(func(): _dice_overlay.visible = false)
+	_dice_overlay_gen += 1
+	var gen := _dice_overlay_gen
+	get_tree().create_timer(1.5).timeout.connect(func():
+		if _dice_overlay_gen == gen:
+			_dice_overlay.visible = false
+	)
 
 func _set_all_action_buttons_hidden() -> void:
 	done_btn.visible = false
@@ -375,7 +402,7 @@ func _on_cancel_discard_btn_pressed() -> void:
 	_cancel_discard_btn.visible = false
 	confirm_btn.visible = false
 	discard_pass_btn.visible = true
-	_rebuild_hand(current_player, CardSystem.get_hand(current_player))
+	_rebuild_hand(TurnManager.current_player, CardSystem.get_hand(TurnManager.current_player))
 
 func _update_discard_selection_display() -> void:
 	var i := 0
@@ -398,9 +425,9 @@ func _on_confirm_btn_pressed() -> void:
 	indices.assign(_selected_discard)
 	_discard_mode = false
 	_selected_discard.clear()
-	CardSystem.selective_discard(current_player, indices)
-	_pending_history = {"player": current_player, "card": -1, "detail": "  Passed (discarded %d)" % indices.size()}
-	discard_pass_requested.emit(current_player)
+	CardSystem.selective_discard(TurnManager.current_player, indices)
+	_pending_history = {"player": TurnManager.current_player, "card": -1, "detail": "  Passed (discarded %d)" % indices.size()}
+	discard_pass_requested.emit(TurnManager.current_player)
 
 func _on_game_over(winner: int) -> void:
 	turn_label.text = "Player %d Wins!" % winner
