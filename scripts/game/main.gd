@@ -6,6 +6,7 @@ extends Node2D
 
 var _move_selected: Vector2i = Vector2i(-1, -1)
 var _attack_selected: Vector2i = Vector2i(-1, -1)
+var _is_transitioning: bool = false
 
 func _ready() -> void:
 	hud.card_played_by_ui.connect(_on_card_played_by_ui)
@@ -28,14 +29,16 @@ func _on_placement_started(player: int) -> void:
 	hud.show_placement_ui(player)
 
 func _on_placement_confirmed(player: int) -> void:
+	_is_transitioning = true
 	hud.hide_placement_ui()
 	if player == 1:
-		await _flip_board()
 		board.clear_placement_pawns(1)
+		await _flip_board()
 	elif player == 2:
 		board.clear_placement_zone()
 		await _flip_board()
 	GameManager.confirm_placement(player)
+	_is_transitioning = false
 
 # --- Turn phase ---
 
@@ -85,6 +88,8 @@ func _on_board_cell_tapped(cell: Vector2i) -> void:
 					_handle_attack_tap(cell)
 
 func _handle_placement_tap(cell: Vector2i, player: int) -> void:
+	if _is_transitioning:
+		return
 	var zone := GameManager.get_placement_zone(player)
 	if cell not in zone:
 		return

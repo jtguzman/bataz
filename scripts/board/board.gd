@@ -27,6 +27,10 @@ func _ready() -> void:
 	GameManager.pawn_moved.connect(_on_pawn_moved)
 
 func _on_game_started() -> void:
+	highlight_move_cells = []
+	highlight_attack_cells = []
+	highlight_placement_cells = []
+	selected_cell = Vector2i(-1, -1)
 	for pawn in pawn_nodes.values():
 		pawn.queue_free()
 	pawn_nodes.clear()
@@ -35,6 +39,7 @@ func _on_game_started() -> void:
 	for pos in GameManager.board_state:
 		var team: int = GameManager.board_state[pos]
 		_spawn_pawn(pos, team)
+	queue_redraw()
 
 func _spawn_pawn(board_pos: Vector2i, team: int) -> void:
 	var pawn: Node2D = _pawn_scene.instantiate()

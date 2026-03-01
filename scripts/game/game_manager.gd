@@ -21,6 +21,7 @@ func start_placement() -> void:
 	placement_p1.clear()
 	placement_p2.clear()
 	board_state.clear()
+	pawn_count = [0, 8, 8]
 	placement_started.emit(1)
 
 func get_placement_zone(player: int) -> Array[Vector2i]:
