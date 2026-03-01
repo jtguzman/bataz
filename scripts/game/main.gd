@@ -6,14 +6,12 @@ extends Node2D
 
 var _move_selected: Vector2i = Vector2i(-1, -1)
 var _attack_selected: Vector2i = Vector2i(-1, -1)
-var _awaiting_discard_confirm: bool = false
 
 func _ready() -> void:
 	hud.card_played_by_ui.connect(_on_card_played_by_ui)
 	hud.discard_pass_requested.connect(_on_discard_pass_requested)
 	hud.movement_done_requested.connect(_on_movement_done)
 	hud.defense_chosen.connect(_on_defense_chosen)
-	hud.turn_end_confirmed.connect(_on_turn_end_confirmed)
 	board.board_cell_tapped.connect(_on_board_cell_tapped)
 	TurnManager.phase_changed.connect(_on_phase_changed)
 	TurnManager.attack_resolved.connect(_on_attack_resolved)
@@ -24,7 +22,7 @@ func _on_phase_changed(phase: TurnManager.Phase) -> void:
 	_move_selected = Vector2i(-1, -1)
 	_attack_selected = Vector2i(-1, -1)
 	if phase == TurnManager.Phase.END:
-		if not _awaiting_discard_confirm and GameManager.state != GameManager.State.GAME_OVER:
+		if GameManager.state != GameManager.State.GAME_OVER:
 			_do_flip_then_next_turn()
 
 func _do_flip_then_next_turn() -> void:
@@ -43,13 +41,7 @@ func _on_card_played_by_ui(player: int, card_index: int) -> void:
 	TurnManager.on_card_played(type)
 
 func _on_discard_pass_requested(_player: int) -> void:
-	_awaiting_discard_confirm = true
 	TurnManager.on_discard_and_pass()
-	hud.show_discard_preview()
-
-func _on_turn_end_confirmed() -> void:
-	_awaiting_discard_confirm = false
-	_do_flip_then_next_turn()
 
 func _on_movement_done() -> void:
 	TurnManager.on_movement_done()
