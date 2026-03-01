@@ -86,10 +86,9 @@ func on_defense_resolved(defender_played_card: bool, defender_adjacent: int) -> 
 	# end_turn() is called by Main after flip animation
 
 func on_discard_and_pass() -> void:
-	CardSystem.discard_and_refill(current_player)
 	phase = Phase.END
 	phase_changed.emit(phase)
-	# end_turn() is called by Main after user confirms preview
+	# end_turn() is called by Main after flip animation
 
 func end_turn() -> void:
 	turn_ended.emit(current_player)
