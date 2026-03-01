@@ -88,6 +88,13 @@ func get_valid_attack_targets(pos: Vector2i) -> Array[Vector2i]:
 				targets.append(neighbor)
 	return targets
 
+func has_valid_attacker(team: int) -> bool:
+	for pos in board_state:
+		if board_state[pos] == team:
+			if not get_valid_attack_targets(pos).is_empty():
+				return true
+	return false
+
 func _in_bounds(pos: Vector2i) -> bool:
 	return pos.x >= 0 and pos.x < 8 and pos.y >= 0 and pos.y < 8
 
