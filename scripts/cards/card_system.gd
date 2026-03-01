@@ -73,6 +73,21 @@ func discard_and_refill(player: int) -> void:
 	_set_hand(player, hand)
 	hand_changed.emit(player, hand.duplicate())
 
+func selective_discard(player: int, indices: Array[int]) -> void:
+	var hand := _get_hand(player)
+	var sorted := indices.duplicate()
+	sorted.sort()
+	sorted.reverse()
+	for i in sorted:
+		discard_pile.append(hand[i])
+		hand.remove_at(i)
+	var count := sorted.size()
+	_ensure_drawable(count)
+	for _j in count:
+		hand.append(_draw_one())
+	_set_hand(player, hand)
+	hand_changed.emit(player, hand.duplicate())
+
 func get_hand(player: int) -> Array:
 	return _get_hand(player).duplicate()
 
