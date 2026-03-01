@@ -4,7 +4,7 @@ extends Node
 signal turn_started(player: int)
 signal phase_changed(phase: Phase)
 signal turn_ended(player: int)
-signal defense_requested(attacker_pos: Vector2i, defender_pos: Vector2i, attack_roll: int, die_label: String)
+signal defense_requested(attacker_pos: Vector2i, defender_pos: Vector2i, attacker_die_sides: int)
 signal attack_resolved(defender_pos: Vector2i, pawn_survives: bool, attack_roll: int, defense_roll: int)
 signal movement_rolled(points: int)
 
@@ -54,19 +54,17 @@ func on_movement_done() -> void:
 
 func on_attack_declared(attacker_pos: Vector2i, defender_pos: Vector2i, attacker_adjacent: int) -> void:
 	var die_sides := DiceRoller.get_die_sides(attacker_adjacent)
-	var roll := DiceRoller.roll(die_sides)
 	pending_attack = {
 		"attacker_pos": attacker_pos,
 		"defender_pos": defender_pos,
-		"attack_roll": roll,
 		"die_sides": die_sides,
 	}
 	phase = Phase.RESOLVE_DEFENSE
 	phase_changed.emit(phase)
-	defense_requested.emit(attacker_pos, defender_pos, roll, "1d%d" % die_sides)
+	defense_requested.emit(attacker_pos, defender_pos, die_sides)
 
 func on_defense_resolved(defender_played_card: bool, defender_adjacent: int) -> void:
-	var attack_roll: int = pending_attack["attack_roll"]
+	var attack_roll := DiceRoller.roll(pending_attack["die_sides"])
 	var defender_pos: Vector2i = pending_attack["defender_pos"]
 	var def_roll := 0
 	var pawn_survives := false
