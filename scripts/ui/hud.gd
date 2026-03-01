@@ -5,7 +5,6 @@ signal card_played_by_ui(player: int, card_index: int)
 signal discard_pass_requested(player: int)
 signal defense_chosen(played_defense: bool, card_index: int)
 signal movement_done_requested
-signal turn_end_confirmed
 
 @onready var top_hand: HBoxContainer = $TopBar/TopHand
 @onready var bottom_hand: HBoxContainer = $BottomBar/BottomHand
@@ -26,6 +25,9 @@ var _card_scene: PackedScene
 var current_player: int = 1
 var _pending_card_index: int = -1
 var play_card_btn: Button
+var _discard_mode: bool = false
+var _selected_discard: Array[int] = []
+var _cancel_discard_btn: Button
 
 # History panel
 var _history_scroll: ScrollContainer
@@ -50,6 +52,11 @@ func _ready() -> void:
 	play_card_btn.custom_minimum_size = Vector2(120, 60)
 	play_card_btn.visible = false
 	$BottomBar.add_child(play_card_btn)
+	_cancel_discard_btn = Button.new()
+	_cancel_discard_btn.text = "Cancel"
+	_cancel_discard_btn.custom_minimum_size = Vector2(80, 60)
+	_cancel_discard_btn.visible = false
+	$BottomBar.add_child(_cancel_discard_btn)
 	_create_history_panel()
 	_create_dice_overlay()
 	_create_deck_panel()
@@ -70,6 +77,7 @@ func _ready() -> void:
 	done_btn.pressed.connect(_on_done_btn_pressed)
 	discard_pass_btn.pressed.connect(_on_discard_pass_btn_pressed)
 	confirm_btn.pressed.connect(_on_confirm_btn_pressed)
+	_cancel_discard_btn.pressed.connect(_on_cancel_discard_btn_pressed)
 	defense_pass_btn.pressed.connect(_on_defense_pass_btn_pressed)
 	play_card_btn.pressed.connect(_on_play_card_btn_pressed)
 
@@ -262,10 +270,6 @@ func _on_attack_resolved(_dp: Vector2i, pawn_survives: bool, attack_roll: int, d
 	else:
 		_pending_history["detail"] = "  Atk:%d -> Hit!" % attack_roll
 
-func show_discard_preview() -> void:
-	_set_all_action_buttons_hidden()
-	confirm_btn.visible = true
-
 func _on_hand_changed(player: int, hand: Array) -> void:
 	_rebuild_hand(player, hand)
 
@@ -287,6 +291,13 @@ func _rebuild_hand(player: int, hand: Array) -> void:
 		container.add_child(card)
 
 func _on_hand_card_tapped(idx: int) -> void:
+	if _discard_mode:
+		if idx in _selected_discard:
+			_selected_discard.erase(idx)
+		else:
+			_selected_discard.append(idx)
+		_update_discard_selection_display()
+		return
 	if TurnManager.phase != TurnManager.Phase.PLAY_CARD:
 		return
 	var hand := CardSystem.get_hand(current_player)
@@ -343,17 +354,53 @@ func _set_all_action_buttons_hidden() -> void:
 	discard_pass_btn.visible = false
 	confirm_btn.visible = false
 	play_card_btn.visible = false
+	_cancel_discard_btn.visible = false
 	_pending_card_index = -1
+	_discard_mode = false
+	_selected_discard.clear()
 
 func _on_done_btn_pressed() -> void:
 	movement_done_requested.emit()
 
 func _on_discard_pass_btn_pressed() -> void:
-	_pending_history = {"player": current_player, "card": -1, "detail": "  Passed"}
-	discard_pass_requested.emit(current_player)
+	_discard_mode = true
+	_selected_discard.clear()
+	discard_pass_btn.visible = false
+	_cancel_discard_btn.visible = true
+	_update_discard_selection_display()
+
+func _on_cancel_discard_btn_pressed() -> void:
+	_discard_mode = false
+	_selected_discard.clear()
+	_cancel_discard_btn.visible = false
+	confirm_btn.visible = false
+	discard_pass_btn.visible = true
+	_rebuild_hand(current_player, CardSystem.get_hand(current_player))
+
+func _update_discard_selection_display() -> void:
+	var i := 0
+	for child in bottom_hand.get_children():
+		if i in _selected_discard:
+			child.modulate = Color(1.0, 0.5, 0.5, 1.0)
+		else:
+			child.modulate = Color(1.0, 1.0, 1.0, 1.0)
+		i += 1
+	if _selected_discard.size() > 0:
+		confirm_btn.text = "Confirm Discard (%d)" % _selected_discard.size()
+		confirm_btn.visible = true
+	else:
+		confirm_btn.visible = false
 
 func _on_confirm_btn_pressed() -> void:
-	turn_end_confirmed.emit()
+	if not _discard_mode:
+		return
+	var indices: Array[int] = []
+	indices.assign(_selected_discard)
+	_discard_mode = false
+	_selected_discard.clear()
+	CardSystem.selective_discard(current_player, indices)
+	_pending_history = {"player": current_player, "card": -1, "detail": "  Passed (discarded %d)" % indices.size()}
+	discard_pass_requested.emit(current_player)
 
 func _on_game_over(winner: int) -> void:
 	turn_label.text = "Player %d Wins!" % winner
