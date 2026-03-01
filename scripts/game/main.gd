@@ -44,7 +44,9 @@ func _on_placement_confirmed(player: int) -> void:
 	GameManager.confirm_placement(player)
 	_is_transitioning = false
 
-func _on_attack_card_pending(_player: int, card_index: int) -> void:
+func _on_attack_card_pending(player: int, card_index: int) -> void:
+	assert(player == TurnManager.current_player, \
+		"[Main] attack_card_pending from wrong player %d" % player)
 	_pending_attack_card_index = card_index
 	_pending_attacker_pos = Vector2i(-1, -1)
 	board.clear_highlights()
@@ -142,12 +144,15 @@ func _handle_attack_card_tap(cell: Vector2i) -> void:
 			board.clear_highlights()
 
 func _execute_pending_attack(enemy_cell: Vector2i) -> void:
+	# Snapshot before synchronous signal emissions can modify TurnManager state
 	var player := TurnManager.current_player
 	var attacker := _pending_attacker_pos
 	var card_index := _pending_attack_card_index
 	_pending_attack_card_index = -1
 	_pending_attacker_pos = Vector2i(-1, -1)
 	CardSystem.play_card(player, card_index)
+	# on_card_played and on_attack_declared each emit phase_changed synchronously;
+	# do not write state between these two calls.
 	TurnManager.on_card_played(CardType.Type.ATTACK)
 	var adjacent := GameManager.get_adjacent_allies(attacker, player)
 	TurnManager.on_attack_declared(attacker, enemy_cell, adjacent)
