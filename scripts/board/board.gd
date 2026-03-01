@@ -9,10 +9,12 @@ const COLOR_DARK  := Color("#B58863")
 const COLOR_MOVE_HIGHLIGHT  := Color(1.0, 1.0, 0.0, 0.35)
 const COLOR_ATTACK_HIGHLIGHT := Color(1.0, 0.2, 0.2, 0.45)
 const COLOR_SELECTED := Color(1.0, 1.0, 1.0, 0.35)
+const COLOR_PLACEMENT_ZONE := Color(1.0, 1.0, 0.0, 0.25)
 
 var highlight_move_cells: Array[Vector2i] = []
 var highlight_attack_cells: Array[Vector2i] = []
 var selected_cell: Vector2i = Vector2i(-1, -1)
+var highlight_placement_cells: Array[Vector2i] = []
 
 var pawn_nodes: Dictionary = {}
 
@@ -46,11 +48,15 @@ func _spawn_pawn(board_pos: Vector2i, team: int) -> void:
 # --- Placement phase methods ---
 
 func highlight_placement_zone(cells: Array[Vector2i]) -> void:
-	highlight_move_cells = cells
-	highlight_attack_cells = []
+	highlight_placement_cells = cells
+	queue_redraw()
+
+func clear_placement_zone() -> void:
+	highlight_placement_cells = []
 	queue_redraw()
 
 func render_placement(placement_dict: Dictionary, team: int) -> void:
+	assert(team == 1 or team == 2, "render_placement: team must be 1 or 2, got %d" % team)
 	# Remove visual pawns for this team no longer in placement_dict
 	var to_remove: Array[Vector2i] = []
 	for pos in pawn_nodes:
@@ -128,6 +134,8 @@ func _draw() -> void:
 		draw_rect(Rect2(pos.x * CELL_SIZE, pos.y * CELL_SIZE, CELL_SIZE, CELL_SIZE), COLOR_MOVE_HIGHLIGHT)
 	for pos in highlight_attack_cells:
 		draw_rect(Rect2(pos.x * CELL_SIZE, pos.y * CELL_SIZE, CELL_SIZE, CELL_SIZE), COLOR_ATTACK_HIGHLIGHT)
+	for pos in highlight_placement_cells:
+		draw_rect(Rect2(pos.x * CELL_SIZE, pos.y * CELL_SIZE, CELL_SIZE, CELL_SIZE), COLOR_PLACEMENT_ZONE)
 	if selected_cell != Vector2i(-1, -1):
 		draw_rect(Rect2(selected_cell.x * CELL_SIZE, selected_cell.y * CELL_SIZE, CELL_SIZE, CELL_SIZE), COLOR_SELECTED)
 
