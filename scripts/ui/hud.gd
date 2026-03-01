@@ -6,6 +6,8 @@ signal discard_pass_requested(player: int)
 signal defense_chosen(played_defense: bool, card_index: int)
 signal movement_done_requested
 signal placement_confirmed(player: int)
+signal attack_card_pending(player: int, card_index: int)
+signal attack_card_cancelled
 
 @onready var top_hand: HBoxContainer = $TopBar/TopHand
 @onready var bottom_hand: HBoxContainer = $BottomBar/BottomHand
@@ -28,6 +30,7 @@ var play_card_btn: Button
 var _discard_mode: bool = false
 var _selected_discard: Array[int] = []
 var _cancel_discard_btn: Button
+var _cancel_attack_btn: Button
 var _placement_player: int = 0
 var _placement_label: Label
 var _placement_confirm_btn: Button
@@ -65,6 +68,11 @@ func _ready() -> void:
 	_cancel_discard_btn.custom_minimum_size = Vector2(80, 60)
 	_cancel_discard_btn.visible = false
 	$BottomBar.add_child(_cancel_discard_btn)
+	_cancel_attack_btn = Button.new()
+	_cancel_attack_btn.text = "Cancel"
+	_cancel_attack_btn.custom_minimum_size = Vector2(80, 60)
+	_cancel_attack_btn.visible = false
+	$BottomBar.add_child(_cancel_attack_btn)
 	_placement_label = Label.new()
 	_placement_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	_placement_label.position = Vector2(324, 8)
@@ -98,6 +106,7 @@ func _ready() -> void:
 	discard_pass_btn.pressed.connect(_on_discard_pass_btn_pressed)
 	confirm_btn.pressed.connect(_on_confirm_btn_pressed)
 	_cancel_discard_btn.pressed.connect(_on_cancel_discard_btn_pressed)
+	_cancel_attack_btn.pressed.connect(_on_cancel_attack_btn_pressed)
 	defense_pass_btn.pressed.connect(_on_defense_pass_btn_pressed)
 	play_card_btn.pressed.connect(_on_play_card_btn_pressed)
 	_placement_confirm_btn.pressed.connect(_on_placement_confirm_btn_pressed)
@@ -342,7 +351,11 @@ func _on_hand_card_tapped(idx: int) -> void:
 		return
 	_pending_card_index = idx
 	_update_hand_selection()
-	play_card_btn.visible = true
+	if card_type == CardType.Type.ATTACK:
+		_cancel_attack_btn.visible = true
+		attack_card_pending.emit(TurnManager.current_player, idx)
+	else:
+		play_card_btn.visible = true
 
 # Fix IMP-1: delegate to GameManager.has_valid_attacker instead of reimplementing
 func _has_valid_attacker() -> bool:
@@ -401,6 +414,7 @@ func _set_all_action_buttons_hidden() -> void:
 	confirm_btn.visible = false
 	play_card_btn.visible = false
 	_cancel_discard_btn.visible = false
+	_cancel_attack_btn.visible = false
 	_placement_label.visible = false
 	_placement_confirm_btn.visible = false
 	_pending_card_index = -1
@@ -424,6 +438,12 @@ func _on_cancel_discard_btn_pressed() -> void:
 	confirm_btn.visible = false
 	discard_pass_btn.visible = true
 	_rebuild_hand(TurnManager.current_player, CardSystem.get_hand(TurnManager.current_player))
+
+func _on_cancel_attack_btn_pressed() -> void:
+	_cancel_attack_btn.visible = false
+	_pending_card_index = -1
+	_update_hand_selection()
+	attack_card_cancelled.emit()
 
 func _update_discard_selection_display() -> void:
 	var i := 0
