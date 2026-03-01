@@ -25,9 +25,11 @@ func _ready() -> void:
 	GameManager.pawn_moved.connect(_on_pawn_moved)
 
 func _on_game_started() -> void:
+	for pawn in pawn_nodes.values():
+		pawn.queue_free()
+	pawn_nodes.clear()
 	for child in get_children():
 		child.queue_free()
-	pawn_nodes.clear()
 	for pos in GameManager.board_state:
 		var team: int = GameManager.board_state[pos]
 		_spawn_pawn(pos, team)
@@ -96,6 +98,8 @@ func _draw() -> void:
 		draw_rect(Rect2(selected_cell.x * CELL_SIZE, selected_cell.y * CELL_SIZE, CELL_SIZE, CELL_SIZE), COLOR_SELECTED)
 
 func _input(event: InputEvent) -> void:
+	if GameManager.state == GameManager.State.GAME_OVER:
+		return
 	var tap_pos: Vector2 = Vector2.ZERO
 	var got_tap := false
 	if event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
