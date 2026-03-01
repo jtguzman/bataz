@@ -5,30 +5,61 @@ signal game_started
 signal game_over(winner: int)
 signal pawn_removed(board_pos: Vector2i, team: int)
 signal pawn_moved(from_pos: Vector2i, to_pos: Vector2i)
+signal placement_started(player: int)
 
-enum State { SETUP, PLAYING, GAME_OVER }
+enum State { SETUP, PLACEMENT_P1, PLACEMENT_P2, PLAYING, GAME_OVER }
 
 var state: State = State.SETUP
 var board_state: Dictionary = {}
 var pawn_count: Array[int] = [0, 8, 8]
 
-const P1_ROWS: Array[int] = [7]
-const P2_ROWS: Array[int] = [0]
+var placement_p1: Dictionary = {}
+var placement_p2: Dictionary = {}
 
-func start_game() -> void:
-	state = State.PLAYING
+func start_placement() -> void:
+	state = State.PLACEMENT_P1
+	placement_p1.clear()
+	placement_p2.clear()
 	board_state.clear()
 	pawn_count = [0, 8, 8]
-	_place_pawns(1, P1_ROWS)
-	_place_pawns(2, P2_ROWS)
+	placement_started.emit(1)
+
+func get_placement_zone(player: int) -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	var rows: Array[int] = [5, 6, 7] if player == 1 else [0, 1, 2]
+	for row in rows:
+		for col in 8:
+			cells.append(Vector2i(col, row))
+	return cells
+
+func place_pawn(player: int, pos: Vector2i) -> void:
+	if player == 1:
+		placement_p1[pos] = player
+	else:
+		placement_p2[pos] = player
+
+func remove_pawn_from_placement(player: int, pos: Vector2i) -> void:
+	if player == 1:
+		placement_p1.erase(pos)
+	else:
+		placement_p2.erase(pos)
+
+func confirm_placement(player: int) -> void:
+	if player == 1:
+		state = State.PLACEMENT_P2
+		placement_started.emit(2)
+	else:
+		finalize_placement()
+
+func finalize_placement() -> void:
+	for pos in placement_p1:
+		board_state[pos] = placement_p1[pos]
+	for pos in placement_p2:
+		board_state[pos] = placement_p2[pos]
+	state = State.PLAYING
 	CardSystem.setup()
 	TurnManager.start_game()
 	game_started.emit()
-
-func _place_pawns(team: int, rows: Array[int]) -> void:
-	for row in rows:
-		for col in 8:
-			board_state[Vector2i(col, row)] = team
 
 func get_team_at(pos: Vector2i) -> int:
 	return board_state.get(pos, 0)
