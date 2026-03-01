@@ -43,6 +43,40 @@ func _spawn_pawn(board_pos: Vector2i, team: int) -> void:
 	add_child(pawn)
 	pawn_nodes[board_pos] = pawn
 
+# --- Placement phase methods ---
+
+func highlight_placement_zone(cells: Array[Vector2i]) -> void:
+	highlight_move_cells = cells
+	highlight_attack_cells = []
+	queue_redraw()
+
+func render_placement(placement_dict: Dictionary, team: int) -> void:
+	# Remove visual pawns for this team no longer in placement_dict
+	var to_remove: Array[Vector2i] = []
+	for pos in pawn_nodes:
+		if pawn_nodes[pos].team == team and not placement_dict.has(pos):
+			to_remove.append(pos)
+	for pos in to_remove:
+		pawn_nodes[pos].queue_free()
+		pawn_nodes.erase(pos)
+	# Spawn new pawns for positions added to placement_dict
+	for pos in placement_dict:
+		if not pawn_nodes.has(pos):
+			_spawn_pawn(pos, team)
+	queue_redraw()
+
+func clear_placement_pawns(team: int) -> void:
+	var to_remove: Array[Vector2i] = []
+	for pos in pawn_nodes:
+		if pawn_nodes[pos].team == team:
+			to_remove.append(pos)
+	for pos in to_remove:
+		pawn_nodes[pos].queue_free()
+		pawn_nodes.erase(pos)
+	queue_redraw()
+
+# --- Game phase methods ---
+
 func _on_pawn_removed(board_pos: Vector2i, _team: int) -> void:
 	if pawn_nodes.has(board_pos):
 		pawn_nodes[board_pos].queue_free()
