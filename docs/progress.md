@@ -72,7 +72,14 @@
 
 ---
 
-## Milestone 7 — Polish & Platform
+## Milestone 7 — Gameplay Refinements
+- [x] Selective discard — player chooses which 1–4 cards to discard instead of all 4
+- [x] Placement phase — each player places 8 pawns in home rows before turns begin (board flips between players, hidden info)
+- [x] Attack/defense dice shown in history — `1d8=7 vs 1d6=3 → Hit!` format
+
+---
+
+## Milestone 8 — Polish & Platform
 - [ ] Mobile touch input — touch events handled in board.gd (InputEventScreenTouch), needs real device test
 - [ ] Screen scaling on portrait — untested
 - [ ] Sound effects (dice roll, pawn remove, card play)
@@ -84,5 +91,5 @@
 
 ## Known Issues / Next Steps
 - P2 face-down cards in TopBar appear compressed — cosmetic, no gameplay impact
-- No sound effects yet (Milestone 7)
+- No sound effects yet (Milestone 8)
 - Mobile not tested on real device yet
