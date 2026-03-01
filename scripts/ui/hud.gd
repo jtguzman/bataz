@@ -294,7 +294,7 @@ func _on_attack_resolved(_dp: Vector2i, pawn_survives: bool, attack_roll: int, d
 		if _dice_panel_gen == gen:
 			dice_panel.visible = false
 	)
-	if defense_roll > 0:
+	if defense_die_sides > 0:
 		var outcome := "Blocked!" if pawn_survives else "Hit!"
 		_pending_history["detail"] = "  1d%d=%d vs 1d%d=%d → %s" % [attack_die_sides, attack_roll, defense_die_sides, defense_roll, outcome]
 	else:
