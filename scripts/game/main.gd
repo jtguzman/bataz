@@ -7,6 +7,8 @@ extends Node2D
 var _move_selected: Vector2i = Vector2i(-1, -1)
 var _attack_selected: Vector2i = Vector2i(-1, -1)
 var _is_transitioning: bool = false
+var _pending_attack_card_index: int = -1
+var _pending_attacker_pos: Vector2i = Vector2i(-1, -1)
 
 func _ready() -> void:
 	hud.card_played_by_ui.connect(_on_card_played_by_ui)
@@ -14,6 +16,8 @@ func _ready() -> void:
 	hud.movement_done_requested.connect(_on_movement_done)
 	hud.defense_chosen.connect(_on_defense_chosen)
 	hud.placement_confirmed.connect(_on_placement_confirmed)
+	hud.attack_card_pending.connect(_on_attack_card_pending)
+	hud.attack_card_cancelled.connect(_on_attack_card_cancelled)
 	board.board_cell_tapped.connect(_on_board_cell_tapped)
 	TurnManager.phase_changed.connect(_on_phase_changed)
 	TurnManager.attack_resolved.connect(_on_attack_resolved)
@@ -40,12 +44,24 @@ func _on_placement_confirmed(player: int) -> void:
 	GameManager.confirm_placement(player)
 	_is_transitioning = false
 
+func _on_attack_card_pending(_player: int, card_index: int) -> void:
+	_pending_attack_card_index = card_index
+	_pending_attacker_pos = Vector2i(-1, -1)
+	board.clear_highlights()
+
+func _on_attack_card_cancelled() -> void:
+	_pending_attack_card_index = -1
+	_pending_attacker_pos = Vector2i(-1, -1)
+	board.clear_highlights()
+
 # --- Turn phase ---
 
 func _on_phase_changed(phase: TurnManager.Phase) -> void:
 	board.clear_highlights()
 	_move_selected = Vector2i(-1, -1)
 	_attack_selected = Vector2i(-1, -1)
+	_pending_attack_card_index = -1
+	_pending_attacker_pos = Vector2i(-1, -1)
 	if phase == TurnManager.Phase.END:
 		if GameManager.state != GameManager.State.GAME_OVER:
 			_do_flip_then_next_turn()
@@ -82,6 +98,9 @@ func _on_board_cell_tapped(cell: Vector2i) -> void:
 			_handle_placement_tap(cell, 2)
 		GameManager.State.PLAYING:
 			match TurnManager.phase:
+				TurnManager.Phase.PLAY_CARD:
+					if _pending_attack_card_index >= 0:
+						_handle_attack_card_tap(cell)
 				TurnManager.Phase.RESOLVE_MOVEMENT:
 					_handle_movement_tap(cell)
 				TurnManager.Phase.RESOLVE_ATTACK:
@@ -100,6 +119,38 @@ func _handle_placement_tap(cell: Vector2i, player: int) -> void:
 		GameManager.place_pawn(player, cell)
 	board.render_placement(placement_dict, player)
 	hud.update_placement_count(placement_dict.size())
+
+func _handle_attack_card_tap(cell: Vector2i) -> void:
+	var team := TurnManager.current_player
+	if _pending_attacker_pos == Vector2i(-1, -1):
+		if GameManager.get_team_at(cell) == team:
+			var targets := GameManager.get_valid_attack_targets(cell)
+			if not targets.is_empty():
+				_pending_attacker_pos = cell
+				board.set_selected(cell)
+				board.highlight_attack_targets(targets)
+	else:
+		var targets := GameManager.get_valid_attack_targets(_pending_attacker_pos)
+		if cell in targets:
+			_execute_pending_attack(cell)
+		elif GameManager.get_team_at(cell) == team and not GameManager.get_valid_attack_targets(cell).is_empty():
+			_pending_attacker_pos = cell
+			board.set_selected(cell)
+			board.highlight_attack_targets(GameManager.get_valid_attack_targets(cell))
+		else:
+			_pending_attacker_pos = Vector2i(-1, -1)
+			board.clear_highlights()
+
+func _execute_pending_attack(enemy_cell: Vector2i) -> void:
+	var player := TurnManager.current_player
+	var attacker := _pending_attacker_pos
+	var card_index := _pending_attack_card_index
+	_pending_attack_card_index = -1
+	_pending_attacker_pos = Vector2i(-1, -1)
+	CardSystem.play_card(player, card_index)
+	TurnManager.on_card_played(CardType.Type.ATTACK)
+	var adjacent := GameManager.get_adjacent_allies(attacker, player)
+	TurnManager.on_attack_declared(attacker, enemy_cell, adjacent)
 
 func _handle_movement_tap(cell: Vector2i) -> void:
 	var team := TurnManager.current_player
