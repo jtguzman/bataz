@@ -13,7 +13,6 @@ enum Phase {
 	RESOLVE_MOVEMENT,
 	RESOLVE_ATTACK,
 	RESOLVE_DEFENSE,
-	DRAW,
 	END
 }
 
@@ -51,6 +50,10 @@ func on_movement_done() -> void:
 	phase = Phase.END
 	phase_changed.emit(phase)
 	# end_turn() is called by Main after flip animation
+
+func consume_movement_point() -> void:
+	assert(movement_points > 0, "[TurnManager] No movement points to consume")
+	movement_points -= 1
 
 func on_attack_declared(attacker_pos: Vector2i, defender_pos: Vector2i, attacker_adjacent: int) -> void:
 	var die_sides := DiceRoller.get_die_sides(attacker_adjacent)
