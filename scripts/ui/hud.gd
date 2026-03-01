@@ -5,6 +5,7 @@ signal card_played_by_ui(player: int, card_index: int)
 signal discard_pass_requested(player: int)
 signal defense_chosen(played_defense: bool, card_index: int)
 signal movement_done_requested
+signal placement_confirmed(player: int)
 
 @onready var top_hand: HBoxContainer = $TopBar/TopHand
 @onready var bottom_hand: HBoxContainer = $BottomBar/BottomHand
@@ -27,6 +28,9 @@ var play_card_btn: Button
 var _discard_mode: bool = false
 var _selected_discard: Array[int] = []
 var _cancel_discard_btn: Button
+var _placement_player: int = 0
+var _placement_label: Label
+var _placement_confirm_btn: Button
 
 # History panel
 var _history_scroll: ScrollContainer
@@ -61,6 +65,19 @@ func _ready() -> void:
 	_cancel_discard_btn.custom_minimum_size = Vector2(80, 60)
 	_cancel_discard_btn.visible = false
 	$BottomBar.add_child(_cancel_discard_btn)
+	_placement_label = Label.new()
+	_placement_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_placement_label.position = Vector2(324, 8)
+	_placement_label.size = Vector2(504, 40)
+	_placement_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_placement_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_placement_label.visible = false
+	add_child(_placement_label)
+	_placement_confirm_btn = Button.new()
+	_placement_confirm_btn.text = "Confirm Placement"
+	_placement_confirm_btn.custom_minimum_size = Vector2(180, 60)
+	_placement_confirm_btn.visible = false
+	$BottomBar.add_child(_placement_confirm_btn)
 	_create_history_panel()
 	_create_dice_overlay()
 	_create_deck_panel()
@@ -83,6 +100,7 @@ func _ready() -> void:
 	_cancel_discard_btn.pressed.connect(_on_cancel_discard_btn_pressed)
 	defense_pass_btn.pressed.connect(_on_defense_pass_btn_pressed)
 	play_card_btn.pressed.connect(_on_play_card_btn_pressed)
+	_placement_confirm_btn.pressed.connect(_on_placement_confirm_btn_pressed)
 
 # --- History panel ---
 
@@ -382,6 +400,8 @@ func _set_all_action_buttons_hidden() -> void:
 	confirm_btn.visible = false
 	play_card_btn.visible = false
 	_cancel_discard_btn.visible = false
+	_placement_label.visible = false
+	_placement_confirm_btn.visible = false
 	_pending_card_index = -1
 	_discard_mode = false
 	_selected_discard.clear()
@@ -428,6 +448,25 @@ func _on_confirm_btn_pressed() -> void:
 	CardSystem.selective_discard(TurnManager.current_player, indices)
 	_pending_history = {"player": TurnManager.current_player, "card": -1, "detail": "  Passed (discarded %d)" % indices.size()}
 	discard_pass_requested.emit(TurnManager.current_player)
+
+func show_placement_ui(player: int) -> void:
+	_placement_player = player
+	_set_all_action_buttons_hidden()
+	turn_label.text = "Player %d" % player
+	_placement_label.text = "Player %d — Place your pieces (0/8)" % player
+	_placement_label.visible = true
+	_placement_confirm_btn.visible = false
+
+func update_placement_count(n: int) -> void:
+	_placement_label.text = "Player %d — Place your pieces (%d/8)" % [_placement_player, n]
+	_placement_confirm_btn.visible = (n == 8)
+
+func hide_placement_ui() -> void:
+	_placement_label.visible = false
+	_placement_confirm_btn.visible = false
+
+func _on_placement_confirm_btn_pressed() -> void:
+	placement_confirmed.emit(_placement_player)
 
 func _on_game_over(winner: int) -> void:
 	turn_label.text = "Player %d Wins!" % winner
