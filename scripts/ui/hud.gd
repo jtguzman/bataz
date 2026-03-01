@@ -219,11 +219,10 @@ func _on_movement_rolled(points: int) -> void:
 	_show_dice("1d4", points)
 	_pending_history["detail"] = "  Rolled %d pts" % points
 
-func _on_defense_requested(_ap: Vector2i, _dp: Vector2i, attack_roll: int, die_label: String) -> void:
-	_show_dice(die_label, attack_roll)
+func _on_defense_requested(_ap: Vector2i, _dp: Vector2i, die_sides: int) -> void:
 	var defender := 2 if current_player == 1 else 1
 	var hand := CardSystem.get_hand(defender)
-	defense_title.text = "Player %d - Defend? (ATK=%d)" % [defender, attack_roll]
+	defense_title.text = "Player %d - Defend? (Attack: 1d%d)" % [defender, die_sides]
 	for child in defense_hand.get_children():
 		child.queue_free()
 	var has_defense_card := false
