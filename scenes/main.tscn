@@ -1,0 +1,115 @@
+[gd_scene format=3 uid="uid://caari3eh6ppcs"]
+
+[ext_resource type="Script" uid="uid://mtlokf6swabw" path="res://scripts/game/main.gd" id="1_tbgi4"]
+[ext_resource type="PackedScene" uid="uid://irwinge05gxt" path="res://scenes/board/board.tscn" id="2_tefeu"]
+[ext_resource type="Script" uid="uid://c6qt1iaet1l3j" path="res://scripts/board/board.gd" id="3_o6xl0"]
+[ext_resource type="PackedScene" uid="uid://wunsaw50fuji" path="res://scenes/ui/hud.tscn" id="4_tipki"]
+[ext_resource type="Script" uid="uid://ss2njst2plk2" path="res://scripts/ui/hud.gd" id="5_85g3d"]
+
+[node name="Main" type="Node2D" unique_id=1358092191]
+position = Vector2(576, 300)
+script = ExtResource("1_tbgi4")
+
+[node name="Board" type="Node2D" parent="." unique_id=1132760354 instance=ExtResource("2_tefeu")]
+position = Vector2(-252, -252)
+script = ExtResource("3_o6xl0")
+
+[node name="HUD" type="CanvasLayer" parent="." unique_id=1209933158 instance=ExtResource("4_tipki")]
+script = ExtResource("5_85g3d")
+
+[node name="TopBar" type="HBoxContainer" parent="HUD" unique_id=1043327127]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 48.0
+
+[node name="TurnLabel" type="Label" parent="HUD/TopBar" unique_id=687094594]
+layout_mode = 2
+text = "Player 1"
+
+[node name="TopHand" type="HBoxContainer" parent="HUD/TopBar" unique_id=485187389]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BottomBar" type="HBoxContainer" parent="HUD" unique_id=323285910]
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -96.0
+
+[node name="BottomHand" type="HBoxContainer" parent="HUD/BottomBar" unique_id=1506305158]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="DoneBtn" type="Button" parent="HUD/BottomBar" unique_id=1321176460]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+text = "Done"
+
+[node name="DiscardPassBtn" type="Button" parent="HUD/BottomBar" unique_id=1949671767]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Discard & Pass"
+
+[node name="ConfirmBtn" type="Button" parent="HUD/BottomBar" unique_id=2020455205]
+custom_minimum_size = Vector2(110, 0)
+layout_mode = 2
+text = "Confirm Turn"
+
+[node name="DicePanel" type="PanelContainer" parent="HUD" unique_id=196483876]
+custom_minimum_size = Vector2(220, 60)
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -30.5
+offset_top = -11.5
+offset_right = 30.5
+offset_bottom = 11.5
+
+[node name="DiceLabel" type="Label" parent="HUD/DicePanel" unique_id=2130718062]
+layout_mode = 2
+text = "1d4 -> 3"
+
+[node name="DefensePanel" type="PanelContainer" parent="HUD" unique_id=2040050149]
+custom_minimum_size = Vector2(400, 200)
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -58.5
+offset_top = -31.0
+offset_right = 58.5
+offset_bottom = 31.0
+
+[node name="VBox" type="VBoxContainer" parent="HUD/DefensePanel" unique_id=1096832630]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="HUD/DefensePanel/VBox" unique_id=1528000373]
+layout_mode = 2
+text = "Defend?"
+
+[node name="DefenseHand" type="HBoxContainer" parent="HUD/DefensePanel/VBox" unique_id=2028023228]
+layout_mode = 2
+
+[node name="PassBtn" type="Button" parent="HUD/DefensePanel/VBox" unique_id=1399740462]
+layout_mode = 2
+text = "Pass (take hit)"
+
+[node name="TurnOverlay" type="PanelContainer" parent="HUD" unique_id=1082949509]
+custom_minimum_size = Vector2(280, 80)
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -57.0
+offset_top = -11.5
+offset_right = 57.0
+offset_bottom = 11.5
+
+[node name="Label" type="Label" parent="HUD/TurnOverlay" unique_id=661729156]
+layout_mode = 2
+text = "Player 1's Turn"

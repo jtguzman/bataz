@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://4k12oawmle0x"]
+
+[ext_resource type="Script" uid="uid://cr0kutpxwq31y" path="res://scripts/pieces/pawn.gd" id="1_joqft"]
+
+[node name="Pawn" type="Node2D" unique_id=2127514151]
+script = ExtResource("1_joqft")

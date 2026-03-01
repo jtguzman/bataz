@@ -1,0 +1,9 @@
+# Godot 4 generated files
+.godot/
+
+# Import caches
+*.import
+
+# OS / editor temp files
+.DS_Store
+Thumbs.db
