@@ -75,7 +75,12 @@ func discard_and_refill(player: int) -> void:
 
 func selective_discard(player: int, indices: Array[int]) -> void:
 	var hand := _get_hand(player)
-	var sorted := indices.duplicate()
+	# Deduplicate and validate indices
+	var unique: Dictionary = {}
+	for i in indices:
+		assert(i >= 0 and i < hand.size(), "selective_discard: index %d out of bounds" % i)
+		unique[i] = true
+	var sorted: Array = unique.keys()
 	sorted.sort()
 	sorted.reverse()
 	for i in sorted:
@@ -92,7 +97,8 @@ func get_hand(player: int) -> Array:
 	return _get_hand(player).duplicate()
 
 func _get_hand(player: int) -> Array[CardType.Type]:
-	return hand_p1 if player == 1 else hand_p2
+	var source: Array[CardType.Type] = hand_p1 if player == 1 else hand_p2
+	return source.duplicate()
 
 func _set_hand(player: int, hand: Array[CardType.Type]) -> void:
 	if player == 1:
