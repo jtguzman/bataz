@@ -27,20 +27,41 @@ var current_player: int = 1
 var _pending_card_index: int = -1
 var play_card_btn: Button
 
+# History panel
+var _history_scroll: ScrollContainer
+var _history_list: VBoxContainer
+var _pending_history: Dictionary = {}
+
+# Dice overlay
+var _dice_overlay: PanelContainer
+var _dice_type_label: Label
+var _dice_result_label: Label
+
+# Deck panel
+var _draw_count_label: Label
+var _discard_count_label: Label
+var _discard_card_rect: ColorRect
+
 func _ready() -> void:
 	_card_scene = load("res://scenes/cards/card.tscn")
-	# PlayCardBtn is created here because add_node/save_scene have runtime sync issues
+	# Programmatic nodes: add_node/save_scene has runtime sync bug (ADR-007)
 	play_card_btn = Button.new()
 	play_card_btn.text = "Play Card"
 	play_card_btn.custom_minimum_size = Vector2(120, 60)
 	play_card_btn.visible = false
 	$BottomBar.add_child(play_card_btn)
+	_create_history_panel()
+	_create_dice_overlay()
+	_create_deck_panel()
 	TurnManager.turn_started.connect(_on_turn_started)
 	TurnManager.phase_changed.connect(_on_phase_changed)
 	TurnManager.defense_requested.connect(_on_defense_requested)
 	TurnManager.movement_rolled.connect(_on_movement_rolled)
 	TurnManager.attack_resolved.connect(_on_attack_resolved)
+	TurnManager.turn_ended.connect(_on_turn_ended_history)
 	CardSystem.hand_changed.connect(_on_hand_changed)
+	CardSystem.hand_changed.connect(func(_p: int, _h: Array): _update_deck_display())
+	CardSystem.card_played.connect(_on_card_played_history)
 	GameManager.game_over.connect(_on_game_over)
 	_set_all_action_buttons_hidden()
 	dice_panel.visible = false
@@ -51,6 +72,131 @@ func _ready() -> void:
 	confirm_btn.pressed.connect(_on_confirm_btn_pressed)
 	defense_pass_btn.pressed.connect(_on_defense_pass_btn_pressed)
 	play_card_btn.pressed.connect(_on_play_card_btn_pressed)
+
+# --- History panel ---
+
+func _create_history_panel() -> void:
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	panel.position = Vector2(828, 48)
+	panel.size = Vector2(324, 504)
+	add_child(panel)
+	var vbox := VBoxContainer.new()
+	panel.add_child(vbox)
+	var title := Label.new()
+	title.text = "History"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+	_history_scroll = ScrollContainer.new()
+	_history_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(_history_scroll)
+	_history_list = VBoxContainer.new()
+	_history_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_history_scroll.add_child(_history_list)
+
+func _on_card_played_history(player: int, type: int) -> void:
+	_pending_history = {"player": player, "card": type, "detail": ""}
+
+func _on_turn_ended_history(_player: int) -> void:
+	if _pending_history.is_empty():
+		return
+	_append_history_entry(
+		_pending_history.get("player", 0),
+		_pending_history.get("card", -1),
+		_pending_history.get("detail", "")
+	)
+	_pending_history = {}
+
+func _append_history_entry(player: int, card_type: int, detail: String) -> void:
+	_history_list.add_child(HSeparator.new())
+	var card_name: String
+	match card_type:
+		CardType.Type.MOVEMENT:
+			card_name = "Movement"
+		CardType.Type.ATTACK:
+			card_name = "Attack"
+		CardType.Type.DEFENSE:
+			card_name = "Defense"
+		_:
+			card_name = "Passed"
+	var lbl := Label.new()
+	lbl.text = "P%d -- %s\n%s" % [player, card_name, detail]
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_history_list.add_child(lbl)
+	_scroll_history_to_bottom()
+
+func _scroll_history_to_bottom() -> void:
+	await get_tree().process_frame
+	_history_scroll.scroll_vertical = int(_history_scroll.get_v_scroll_bar().max_value)
+
+# --- Dice overlay ---
+
+func _create_dice_overlay() -> void:
+	_dice_overlay = PanelContainer.new()
+	_dice_overlay.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_dice_overlay.position = Vector2(496, 240)
+	_dice_overlay.size = Vector2(160, 120)
+	_dice_overlay.visible = false
+	add_child(_dice_overlay)
+	var vbox := VBoxContainer.new()
+	_dice_overlay.add_child(vbox)
+	_dice_type_label = Label.new()
+	_dice_type_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(_dice_type_label)
+	_dice_result_label = Label.new()
+	_dice_result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_dice_result_label.add_theme_font_size_override("font_size", 64)
+	vbox.add_child(_dice_result_label)
+
+# --- Deck panel ---
+
+func _create_deck_panel() -> void:
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	panel.position = Vector2(0, 48)
+	panel.size = Vector2(324, 504)
+	add_child(panel)
+	var vbox := VBoxContainer.new()
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_theme_constant_override("separation", 8)
+	panel.add_child(vbox)
+	_draw_count_label = Label.new()
+	_draw_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(_draw_count_label)
+	var draw_card := ColorRect.new()
+	draw_card.color = Color(0.2, 0.2, 0.6, 1)
+	draw_card.custom_minimum_size = Vector2(100, 140)
+	draw_card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	vbox.add_child(draw_card)
+	vbox.add_child(HSeparator.new())
+	_discard_count_label = Label.new()
+	_discard_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(_discard_count_label)
+	_discard_card_rect = ColorRect.new()
+	_discard_card_rect.color = Color(0.3, 0.3, 0.3, 1)
+	_discard_card_rect.custom_minimum_size = Vector2(100, 140)
+	_discard_card_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	vbox.add_child(_discard_card_rect)
+	_update_deck_display()
+
+func _update_deck_display() -> void:
+	var draw_count := CardSystem.draw_pile.size()
+	var discard_count := CardSystem.discard_pile.size()
+	_draw_count_label.text = "Draw -- %d" % draw_count
+	_discard_count_label.text = "Discard -- %d" % discard_count
+	if discard_count > 0:
+		var last_type: int = CardSystem.discard_pile[-1]
+		match last_type:
+			CardType.Type.MOVEMENT:
+				_discard_card_rect.color = Color(0.2, 0.7, 0.2, 1)
+			CardType.Type.ATTACK:
+				_discard_card_rect.color = Color(0.8, 0.2, 0.2, 1)
+			CardType.Type.DEFENSE:
+				_discard_card_rect.color = Color(0.2, 0.4, 0.8, 1)
+	else:
+		_discard_card_rect.color = Color(0.3, 0.3, 0.3, 1)
+
+# --- Existing turn/phase handlers ---
 
 func _on_turn_started(player: int) -> void:
 	current_player = player
@@ -71,6 +217,7 @@ func _on_phase_changed(phase: TurnManager.Phase) -> void:
 
 func _on_movement_rolled(points: int) -> void:
 	_show_dice("1d4", points)
+	_pending_history["detail"] = "  Rolled %d pts" % points
 
 func _on_defense_requested(_ap: Vector2i, _dp: Vector2i, attack_roll: int, die_label: String) -> void:
 	_show_dice(die_label, attack_roll)
@@ -111,6 +258,10 @@ func _on_attack_resolved(_dp: Vector2i, pawn_survives: bool, attack_roll: int, d
 	dice_label.text = msg
 	dice_panel.visible = true
 	get_tree().create_timer(2.0).timeout.connect(func(): dice_panel.visible = false)
+	if defense_roll > 0:
+		_pending_history["detail"] = "  Atk:%d Def:%d -> %s" % [attack_roll, defense_roll, "Blocked!" if pawn_survives else "Hit!"]
+	else:
+		_pending_history["detail"] = "  Atk:%d -> Hit!" % attack_roll
 
 func show_discard_preview() -> void:
 	_set_all_action_buttons_hidden()
@@ -183,9 +334,10 @@ func show_turn_overlay(player: int) -> void:
 	get_tree().create_timer(0.8).timeout.connect(func(): turn_overlay.visible = false)
 
 func _show_dice(die_label: String, result: int) -> void:
-	dice_label.text = "%s -> %d" % [die_label, result]
-	dice_panel.visible = true
-	get_tree().create_timer(1.5).timeout.connect(func(): dice_panel.visible = false)
+	_dice_type_label.text = die_label
+	_dice_result_label.text = str(result)
+	_dice_overlay.visible = true
+	get_tree().create_timer(1.5).timeout.connect(func(): _dice_overlay.visible = false)
 
 func _set_all_action_buttons_hidden() -> void:
 	done_btn.visible = false
@@ -198,6 +350,7 @@ func _on_done_btn_pressed() -> void:
 	movement_done_requested.emit()
 
 func _on_discard_pass_btn_pressed() -> void:
+	_pending_history = {"player": current_player, "card": -1, "detail": "  Passed"}
 	discard_pass_requested.emit(current_player)
 
 func _on_confirm_btn_pressed() -> void:
