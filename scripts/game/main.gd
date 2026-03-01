@@ -47,6 +47,8 @@ func _on_placement_confirmed(player: int) -> void:
 func _on_attack_card_pending(player: int, card_index: int) -> void:
 	assert(player == TurnManager.current_player, \
 		"[Main] attack_card_pending from wrong player %d" % player)
+	if player != TurnManager.current_player:
+		return
 	_pending_attack_card_index = card_index
 	_pending_attacker_pos = Vector2i(-1, -1)
 	board.clear_highlights()
