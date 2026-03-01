@@ -441,6 +441,7 @@ func _on_cancel_discard_btn_pressed() -> void:
 
 func _on_cancel_attack_btn_pressed() -> void:
 	_cancel_attack_btn.visible = false
+	discard_pass_btn.visible = true
 	_pending_card_index = -1
 	_update_hand_selection()
 	attack_card_cancelled.emit()
