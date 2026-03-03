@@ -5,10 +5,10 @@
 [ext_resource type="PackedScene" uid="uid://wunsaw50fuji" path="res://scenes/ui/hud.tscn" id="4_tipki"]
 
 [node name="Main" type="Node2D" unique_id=1358092191]
-position = Vector2(576, 300)
+position = Vector2(575, 324)
 script = ExtResource("1_tbgi4")
 
 [node name="Board" parent="." unique_id=1132760354 instance=ExtResource("2_tefeu")]
-position = Vector2(-252, -252)
+position = Vector2(-243, -243)
 
 [node name="HUD" parent="." unique_id=1209933158 instance=ExtResource("4_tipki")]

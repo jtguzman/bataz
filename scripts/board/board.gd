@@ -3,7 +3,7 @@ extends Node2D
 
 signal board_cell_tapped(cell: Vector2i)
 
-const CELL_SIZE := 63
+const CELL_SIZE := 81
 const COLOR_LIGHT := Color("#F0D9B5")
 const COLOR_DARK  := Color("#B58863")
 const COLOR_MOVE_HIGHLIGHT  := Color(1.0, 1.0, 0.0, 0.35)
@@ -17,11 +17,14 @@ var selected_cell: Vector2i = Vector2i(-1, -1)
 var highlight_placement_cells: Array[Vector2i] = []
 
 var pawn_nodes: Dictionary = {}
+var dying_count: int = 0
 
 var _pawn_scene: PackedScene
+var _board_texture: Texture2D
 
 func _ready() -> void:
 	_pawn_scene = load("res://scenes/pieces/pawn.tscn")
+	_board_texture = load("res://assets/sprites/board/capiboard.png")
 	GameManager.game_started.connect(_on_game_started)
 	GameManager.pawn_removed.connect(_on_pawn_removed)
 	GameManager.pawn_moved.connect(_on_pawn_moved)
@@ -31,6 +34,7 @@ func _on_game_started() -> void:
 	highlight_attack_cells = []
 	highlight_placement_cells = []
 	selected_cell = Vector2i(-1, -1)
+	dying_count = 0
 	for pawn in pawn_nodes.values():
 		pawn.queue_free()
 	pawn_nodes.clear()
@@ -46,9 +50,12 @@ func _spawn_pawn(board_pos: Vector2i, team: int) -> void:
 	pawn.team = team
 	pawn.board_pos = board_pos
 	pawn.pawn_color = Color("#4A90D9") if team == 1 else Color("#E05252")
-	pawn.position = _cell_center(board_pos)
+	pawn.position = get_cell_center(board_pos)
 	add_child(pawn)
 	pawn_nodes[board_pos] = pawn
+
+func get_cell_center(pos: Vector2i) -> Vector2:
+	return Vector2(pos.x * CELL_SIZE + CELL_SIZE * 0.5, pos.y * CELL_SIZE + CELL_SIZE * 0.5)
 
 # --- Placement phase methods ---
 
@@ -62,7 +69,6 @@ func clear_placement_zone() -> void:
 
 func render_placement(placement_dict: Dictionary, team: int) -> void:
 	assert(team == 1 or team == 2, "render_placement: team must be 1 or 2, got %d" % team)
-	# Remove visual pawns for this team no longer in placement_dict
 	var to_remove: Array[Vector2i] = []
 	for pos in pawn_nodes:
 		if pawn_nodes[pos].team == team and not placement_dict.has(pos):
@@ -70,7 +76,6 @@ func render_placement(placement_dict: Dictionary, team: int) -> void:
 	for pos in to_remove:
 		pawn_nodes[pos].queue_free()
 		pawn_nodes.erase(pos)
-	# Spawn new pawns for positions added to placement_dict
 	for pos in placement_dict:
 		if not pawn_nodes.has(pos):
 			_spawn_pawn(pos, team)
@@ -90,15 +95,18 @@ func clear_placement_pawns(team: int) -> void:
 
 func _on_pawn_removed(board_pos: Vector2i, _team: int) -> void:
 	if pawn_nodes.has(board_pos):
-		pawn_nodes[board_pos].queue_free()
+		var pawn: Node2D = pawn_nodes[board_pos]
 		pawn_nodes.erase(board_pos)
+		dying_count += 1
+		pawn.tree_exiting.connect(func(): dying_count -= 1)
+		pawn.play_death_anim()
 	queue_redraw()
 
 func _on_pawn_moved(from_pos: Vector2i, to_pos: Vector2i) -> void:
 	if pawn_nodes.has(from_pos):
 		var pawn: Node2D = pawn_nodes[from_pos]
 		pawn.board_pos = to_pos
-		pawn.position = _cell_center(to_pos)
+		pawn.move_to(get_cell_center(to_pos))
 		pawn_nodes.erase(from_pos)
 		pawn_nodes[to_pos] = pawn
 	queue_redraw()
@@ -127,14 +135,22 @@ func clear_highlights() -> void:
 	set_selected(Vector2i(-1, -1))
 	queue_redraw()
 
-func _cell_center(pos: Vector2i) -> Vector2:
-	return Vector2(pos.x * CELL_SIZE + CELL_SIZE * 0.5, pos.y * CELL_SIZE + CELL_SIZE * 0.5)
-
 func _draw() -> void:
-	for row in 8:
-		for col in 8:
+	for row in 6:
+		for col in 6:
 			var rect := Rect2(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE)
 			draw_rect(rect, COLOR_LIGHT if (col + row) % 2 == 0 else COLOR_DARK)
+	# Capiboard image overlay — full 1024×1024 including decorative border
+	# Grid occupies 770×770 in source (126px frame on each side)
+	# Scale grid to 504px (CELL_SIZE*6); border maps to 126*(504/770) ≈ 82px in screen space
+	if _board_texture:
+		var border := 126.0 * (CELL_SIZE * 6.0) / 770.0
+		var total := CELL_SIZE * 6.0 + border * 2.0
+		draw_texture_rect_region(
+			_board_texture,
+			Rect2(-border, -border, total, total),
+			Rect2(0.0, 0.0, 1024.0, 1024.0)
+		)
 	for pos in highlight_move_cells:
 		draw_rect(Rect2(pos.x * CELL_SIZE, pos.y * CELL_SIZE, CELL_SIZE, CELL_SIZE), COLOR_MOVE_HIGHLIGHT)
 	for pos in highlight_attack_cells:
@@ -162,5 +178,5 @@ func _input(event: InputEvent) -> void:
 	var local_pos := to_local(tap_pos)
 	var col := int(local_pos.x / CELL_SIZE)
 	var row := int(local_pos.y / CELL_SIZE)
-	if col >= 0 and col < 8 and row >= 0 and row < 8:
+	if col >= 0 and col < 6 and row >= 0 and row < 6:
 		board_cell_tapped.emit(Vector2i(col, row))

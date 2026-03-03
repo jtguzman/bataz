@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://d071xri60goy5"]
+
+[ext_resource type="Script" uid="uid://cxerqmsdktq3q" path="res://network/SpacetimeClient.gd" id="1_0d5rk"]
+
+[node name="SpacetimeClient" type="Node" unique_id=1955553216]
+script = ExtResource("1_0d5rk")

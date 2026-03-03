@@ -11,7 +11,7 @@ enum State { SETUP, PLACEMENT_P1, PLACEMENT_P2, PLAYING, GAME_OVER }
 
 var state: State = State.SETUP
 var board_state: Dictionary = {}
-var pawn_count: Array[int] = [0, 8, 8]
+var pawn_count: Array[int] = [0, 6, 6]
 
 var placement_p1: Dictionary = {}
 var placement_p2: Dictionary = {}
@@ -21,25 +21,25 @@ func start_placement() -> void:
 	placement_p1.clear()
 	placement_p2.clear()
 	board_state.clear()
-	pawn_count = [0, 8, 8]
+	pawn_count = [0, 6, 6]
 	placement_started.emit(1)
 
 func get_placement_zone(player: int) -> Array[Vector2i]:
 	var cells: Array[Vector2i] = []
 	var rows: Array[int]
 	if player == 1:
-		rows = [5, 6, 7]
+		rows = [4, 5]
 	else:
-		rows = [0, 1, 2]
+		rows = [0, 1]
 	for row in rows:
-		for col in 8:
+		for col in 6:
 			cells.append(Vector2i(col, row))
 	return cells
 
 func place_pawn(player: int, pos: Vector2i) -> void:
 	var dict := placement_p1 if player == 1 else placement_p2
-	if dict.size() >= 8 and not dict.has(pos):
-		push_warning("[GameManager] place_pawn: player %d already has 8 pawns placed" % player)
+	if dict.size() >= 6 and not dict.has(pos):
+		push_warning("[GameManager] place_pawn: player %d already has 6 pawns placed" % player)
 		return
 	var zone := get_placement_zone(player)
 	if pos not in zone:
@@ -59,8 +59,8 @@ func confirm_placement(player: int) -> void:
 		push_error("[GameManager] confirm_placement: called for player %d in wrong state" % player)
 		return
 	var dict := placement_p1 if player == 1 else placement_p2
-	if dict.size() != 8:
-		push_error("[GameManager] confirm_placement: player %d has %d pawns, expected 8" % [player, dict.size()])
+	if dict.size() != 6:
+		push_error("[GameManager] confirm_placement: player %d has %d pawns, expected 6" % [player, dict.size()])
 		return
 	if player == 1:
 		state = State.PLACEMENT_P2
@@ -145,7 +145,7 @@ func has_valid_attacker(team: int) -> bool:
 	return false
 
 func _in_bounds(pos: Vector2i) -> bool:
-	return pos.x >= 0 and pos.x < 8 and pos.y >= 0 and pos.y < 8
+	return pos.x >= 0 and pos.x < 6 and pos.y >= 0 and pos.y < 6
 
 func _check_win() -> void:
 	if pawn_count[1] <= 0:

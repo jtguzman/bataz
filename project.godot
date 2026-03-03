@@ -11,18 +11,19 @@ config_version=5
 [application]
 
 config/name="Bataz"
-run/main_scene="res://scenes/main.tscn"
+run/main_scene="res://scenes/ui/lobby.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
 
 [autoload]
 
-MCPScreenshot="*res://addons/godot_mcp/mcp_screenshot_service.gd"
-MCPInputService="*res://addons/godot_mcp/mcp_input_service.gd"
-MCPGameInspector="*res://addons/godot_mcp/mcp_game_inspector_service.gd"
 CardSystem="*res://scripts/cards/card_system.gd"
 TurnManager="*res://scripts/game/turn_manager.gd"
 GameManager="*res://scripts/game/game_manager.gd"
+NetworkManager="*res://scripts/network/network_manager.gd"
+MCPScreenshot="*res://addons/godot_mcp/mcp_screenshot_service.gd"
+MCPInputService="*res://addons/godot_mcp/mcp_input_service.gd"
+MCPGameInspector="*res://addons/godot_mcp/mcp_game_inspector_service.gd"
 
 [display]
 
